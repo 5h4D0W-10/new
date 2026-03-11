@@ -20,6 +20,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { auth } from './config/firebase';
 import { COLORS, SHADOWS } from './constants/theme';
 import { insertEntry } from './db/database';
 
@@ -56,7 +57,12 @@ export default function NewEntry() {
             return;
         }
         try {
-            await insertEntry(text, attachments);
+            const userId = auth.currentUser?.uid;
+            if (!userId) {
+                Alert.alert("Error", "You must be logged in to save.");
+                return;
+            }
+            await insertEntry(text, attachments, userId);
             // Fancy success feedback could go here, for now just back
             router.back();
         } catch (error) {

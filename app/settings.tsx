@@ -3,18 +3,23 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import * as SQLite from 'expo-sqlite';
-import React from 'react';
-import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { signOut } from 'firebase/auth';
+import React, { useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { auth } from './config/firebase';
 // import { COLORS, SHADOWS } from './constants/theme';
 import { SHADOWS } from './constants/theme';
 import { useTheme } from './context/ThemeContext';
+import { backupData, restoreData } from './services/backupService';
 
 
 export default function Settings() {
     const router = useRouter();
     const { colors, toggleTheme, isDark } = useTheme();
-    const [notifications, setNotifications] = React.useState(true);
-    const [biometrics, setBiometrics] = React.useState(false);
+    const [notifications, setNotifications] = useState(true);
+    const [biometrics, setBiometrics] = useState(false);
+    const [backingUp, setBackingUp] = useState(false);
+    const [restoring, setRestoring] = useState(false);
 
     const handleReset = async () => {
         Alert.alert(
@@ -33,6 +38,39 @@ export default function Settings() {
                 }
             ]
         );
+    };
+
+    const handleLogout = async () => {
+        try {
+            await signOut(auth);
+            router.replace('/');
+        } catch (error) {
+            Alert.alert("Error", "Failed to logout");
+        }
+    };
+
+    const handleBackup = async () => {
+        setBackingUp(true);
+        try {
+            const count = await backupData();
+            Alert.alert("Backup Success", `Uploaded ${count} entries to the cloud.`);
+        } catch (error: any) {
+            Alert.alert("Backup Failed", error.message);
+        } finally {
+            setBackingUp(false);
+        }
+    };
+
+    const handleRestore = async () => {
+        setRestoring(true);
+        try {
+            const count = await restoreData();
+            Alert.alert("Restore Success", `Downloaded ${count} entries from the cloud.`);
+        } catch (error: any) {
+            Alert.alert("Restore Failed", error.message);
+        } finally {
+            setRestoring(false);
+        }
     };
 
     const SettingRow = ({ icon, label, rightElement, color, pressable, onPress }: any) => {
@@ -97,14 +135,38 @@ export default function Settings() {
                 </View>
 
                 <View style={styles.sectionContainer}>
+                    <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>Account</Text>
+                    <View style={[styles.card, { backgroundColor: colors.cardBg }]}>
+                        <SettingRow
+                            icon="log-out-outline"
+                            label="Logout"
+                            color="#FF4444"
+                            pressable
+                            onPress={handleLogout}
+                            rightElement={<Ionicons name="chevron-forward" size={20} color="#ccc" />}
+                        />
+                    </View>
+                </View>
+
+                <View style={styles.sectionContainer}>
                     <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>Data & Privacy</Text>
                     <View style={[styles.card, { backgroundColor: colors.cardBg }]}>
                         <SettingRow
                             icon="cloud-upload"
-                            label="Backup Data"
+                            label={backingUp ? "Backing up..." : "Backup Data"}
                             color="#0984e3"
-                            pressable
-                            rightElement={<Ionicons name="chevron-forward" size={20} color="#ccc" />}
+                            pressable={!backingUp}
+                            onPress={handleBackup}
+                            rightElement={backingUp ? <ActivityIndicator size="small" color="#0984e3" /> : <Ionicons name="chevron-forward" size={20} color="#ccc" />}
+                        />
+                        <View style={styles.divider} />
+                        <SettingRow
+                            icon="cloud-download"
+                            label={restoring ? "Restoring..." : "Restore Data"}
+                            color="#00b894"
+                            pressable={!restoring}
+                            onPress={handleRestore}
+                            rightElement={restoring ? <ActivityIndicator size="small" color="#00b894" /> : <Ionicons name="chevron-forward" size={20} color="#ccc" />}
                         />
                         <View style={styles.divider} />
                         <SettingRow
@@ -129,8 +191,13 @@ export default function Settings() {
                             pressable
                             onPress={async () => {
                                 const { getEntries } = require('./db/database');
+                                const userId = auth.currentUser?.uid;
+                                if (!userId) {
+                                    Alert.alert('Error', 'Not logged in');
+                                    return;
+                                }
                                 try {
-                                    const data = await getEntries();
+                                    const data = await getEntries(userId);
                                     console.log('=== DATABASE DUMP ===');
                                     console.log(JSON.stringify(data, null, 2));
                                     console.log('=====================');
@@ -169,6 +236,7 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: 20,
+        paddingBottom: 40,
     },
     sectionContainer: {
         marginBottom: 25,

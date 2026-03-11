@@ -6,6 +6,7 @@ import { MotiView } from 'moti';
 import React, { useCallback, useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { DateData, Calendar as RNCalendar } from 'react-native-calendars';
+import { auth } from './config/firebase';
 import { COLORS, SHADOWS } from './constants/theme';
 import { getEntries } from './db/database';
 
@@ -25,7 +26,10 @@ export default function CalendarPage() {
     const [selectedEntries, setSelectedEntries] = useState<Entry[]>([]);
 
     const loadEntries = async () => {
-        const data = await getEntries() as Entry[];
+        const userId = auth.currentUser?.uid;
+        if (!userId) return;
+
+        const data = await getEntries(userId) as Entry[];
         setEntries(data);
 
         const markers: any = {};

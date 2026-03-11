@@ -6,6 +6,7 @@ import { MotiView } from 'moti';
 import React, { useState } from 'react';
 import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 // import { COLORS, SHADOWS } from './constants/theme';
+import { auth } from './config/firebase';
 import { SHADOWS } from './constants/theme';
 import { useTheme } from './context/ThemeContext';
 import { getEntries } from './db/database';
@@ -23,9 +24,14 @@ export default function Entries() {
     const { colors, isDark } = useTheme();
     const [entries, setEntries] = useState<Entry[]>([]);
 
+
+
     const loadEntries = async () => {
-        const data: any = await getEntries();
-        setEntries(data as Entry[]);
+        const userId = auth.currentUser?.uid;
+        if (userId) {
+            const data: any = await getEntries(userId);
+            setEntries(data as Entry[]);
+        }
     };
 
     useFocusEffect(

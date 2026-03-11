@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { auth } from '../config/firebase';
 import { SHADOWS } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { getEntryById } from '../db/database';
@@ -71,8 +72,11 @@ export default function EntryDetail() {
     useEffect(() => {
         const fetchEntry = async () => {
             if (id) {
-                const data = await getEntryById(Number(id));
-                setEntry(data);
+                const userId = auth.currentUser?.uid;
+                if (userId) {
+                    const data = await getEntryById(Number(id), userId);
+                    setEntry(data);
+                }
             }
             setLoading(false);
         };
