@@ -8,7 +8,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { initDB } from './db/database';
 
 export const unstable_settings = {
-  anchor: '(tabs)',
+  initialRouteName: 'login',
 };
 
 export default function RootLayout() {
@@ -25,13 +25,14 @@ export default function RootLayout() {
             Actually, let's keep it but ideally we sync it with our context. 
             For this iteration, I'll rely on our custom ThemeProvider for our UI components. */}
       <Stack>
+        <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-        <Stack.Screen name="dashboard" options={{ headerShown: false }} />
         <Stack.Screen name="newentry" options={{ title: 'New Entry', headerBackTitle: 'Back' }} />
         <Stack.Screen name="entries" options={{ title: 'Your Journey' }} />
         <Stack.Screen name="calendar" options={{ title: 'Calendar' }} />
         <Stack.Screen name="settings" options={{ headerShown: false }} />
+        <Stack.Screen name="chat" options={{ headerShown: false }} />
       </Stack>
     </ThemeProvider>
   );

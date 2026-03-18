@@ -43,7 +43,7 @@ export default function Settings() {
     const handleLogout = async () => {
         try {
             await signOut(auth);
-            router.replace('/');
+            router.replace('/login');
         } catch (error) {
             Alert.alert("Error", "Failed to logout");
         }
@@ -112,7 +112,7 @@ export default function Settings() {
                                 <Switch
                                     value={isDark}
                                     onValueChange={toggleTheme}
-                                    trackColor={{ true: colors.primary, false: '#ccc' }}
+                                    trackColor={{ true: 'red', false: '#ccc' }}
                                     thumbColor={'#fff'}
                                 />
                             }
@@ -122,14 +122,14 @@ export default function Settings() {
                             icon="notifications"
                             label="Daily Reminders"
                             color="#FF6584"
-                            rightElement={<Switch value={notifications} onValueChange={setNotifications} trackColor={{ true: colors.secondary }} />}
+                            rightElement={<Switch value={notifications} onValueChange={setNotifications} trackColor={{ true: 'red', false: '#ccc' }} thumbColor={'#fff'} />}
                         />
                         <View style={styles.divider} />
                         <SettingRow
                             icon="finger-print"
                             label="Biometric Lock"
                             color="#00cec9"
-                            rightElement={<Switch value={biometrics} onValueChange={setBiometrics} trackColor={{ true: '#00cec9' }} />}
+                            rightElement={<Switch value={biometrics} onValueChange={setBiometrics} trackColor={{ true: 'red', false: '#ccc' }} thumbColor={'#fff'} />}
                         />
                     </View>
                 </View>

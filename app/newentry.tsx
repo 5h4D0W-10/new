@@ -3,6 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Audio } from 'expo-av';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
@@ -18,9 +19,11 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
+    ActivityIndicator
 } from 'react-native';
 import { auth } from './config/firebase';
+import { fetchSignInMethodsForEmail } from 'firebase/auth';
 import { COLORS, SHADOWS } from './constants/theme';
 import { insertEntry } from './db/database';
 
@@ -35,6 +38,11 @@ export default function NewEntry() {
     const [attachments, setAttachments] = useState<Attachment[]>([]);
     const [recording, setRecording] = useState<Audio.Recording | null>(null);
     const [isRecording, setIsRecording] = useState<boolean>(false);
+    const [isFetchingLocation, setIsFetchingLocation] = useState<boolean>(false);
+
+    // Collaboration
+    const [collabVisible, setCollabVisible] = useState<boolean>(false);
+    const [collabEmail, setCollabEmail] = useState<string>('');
 
     // Camera
     const [cameraVisible, setCameraVisible] = useState<boolean>(false);
@@ -113,6 +121,53 @@ export default function NewEntry() {
         if (uri) setAttachments([...attachments, { type: 'audio', uri: uri }]);
         setRecording(null);
     }
+
+    const handleLocation = async () => {
+        setIsFetchingLocation(true);
+        try {
+            let { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Location Permission', 'Permission to access location was denied');
+                return;
+            }
+
+            let location = await Location.getCurrentPositionAsync({});
+            let geocode = await Location.reverseGeocodeAsync({
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude
+            });
+            
+            if (geocode.length > 0) {
+                const place = geocode[0];
+                const locationString = `\n\n📍 ${place.city || place.subregion || place.name || ''}, ${place.region || place.country || ''}`;
+                setText(prev => prev + locationString);
+            } else {
+                const coordsString = `\n\n📍 Lat: ${location.coords.latitude.toFixed(4)}, Lon: ${location.coords.longitude.toFixed(4)}`;
+                setText(prev => prev + coordsString);
+            }
+        } catch (e) {
+            Alert.alert('Error', 'Failed to fetch location');
+        } finally {
+            setIsFetchingLocation(false);
+        }
+    }
+
+    const handleCollabPress = () => {
+        Alert.alert(
+            "Cloud Sync Required",
+            "To collaborate on this memory, the entry securely uploads to the cloud. Do you want to proceed?",
+            [
+                { text: "Cancel", style: "cancel" },
+                { 
+                    text: "Upload & Continue", 
+                    onPress: () => {
+                        // Mock upload, then show collab modal
+                        setCollabVisible(true);
+                    }
+                }
+            ]
+        );
+    };
 
     return (
         <View style={styles.container}>
@@ -212,11 +267,11 @@ export default function NewEntry() {
                     </TouchableOpacity>
 
                     <View style={styles.toolGroup}>
-                        <TouchableOpacity style={styles.toolIcon}>
-                            <Ionicons name="text-outline" size={24} color={COLORS.textSecondary} />
+                        <TouchableOpacity style={styles.toolIcon} onPress={handleCollabPress}>
+                            <Ionicons name="people-outline" size={24} color={COLORS.textSecondary} />
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.toolIcon}>
-                            <Ionicons name="location-outline" size={24} color={COLORS.textSecondary} />
+                        <TouchableOpacity style={styles.toolIcon} onPress={handleLocation} disabled={isFetchingLocation}>
+                            {isFetchingLocation ? <ActivityIndicator size="small" color={COLORS.primary} /> : <Ionicons name="location-outline" size={24} color={COLORS.textSecondary} />}
                         </TouchableOpacity>
                     </View>
                 </MotiView>
@@ -234,6 +289,64 @@ export default function NewEntry() {
                         </TouchableOpacity>
                     </View>
                 </CameraView>
+            </Modal>
+
+            {/* Collaboration Modal */}
+            <Modal visible={collabVisible} animationType="fade" transparent>
+                <View style={styles.modalOverlay}>
+                    <MotiView
+                        from={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        style={styles.modalContent}
+                    >
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Collab with a Friend</Text>
+                            <TouchableOpacity onPress={() => setCollabVisible(false)}>
+                                <Ionicons name="close" size={24} color={COLORS.text} />
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={styles.modalSubtitle}>Tag a friend to share this memory.</Text>
+
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder="Friend's Email or Username"
+                            placeholderTextColor="#ccc"
+                            value={collabEmail}
+                            onChangeText={setCollabEmail}
+                            autoCapitalize="none"
+                        />
+
+                        <TouchableOpacity
+                            style={styles.inviteButton}
+                            onPress={async () => {
+                                const email = collabEmail.trim();
+                                if (email === '') {
+                                    Alert.alert("Error", "Please enter a valid user email.");
+                                    return;
+                                }
+                                
+                                try {
+                                    // Verify user exists in Firebase
+                                    const methods = await fetchSignInMethodsForEmail(auth, email);
+                                    if (methods.length === 0) {
+                                        Alert.alert("User Not Found", "No registered account uses this email address. Please ask them to sign up first.");
+                                        return;
+                                    }
+
+                                    // Valid User Found
+                                    setText(prev => prev + `\n\n🤝 Collaborating with: @${email}`);
+                                    Alert.alert("Invite Sent!", `${email} has been tagged in this entry.`);
+                                    setCollabEmail('');
+                                    setCollabVisible(false);
+                                } catch (error: any) {
+                                    Alert.alert("Error Validating User", error.message);
+                                }
+                            }}
+                        >
+                            <Text style={styles.inviteText}>Send Invite</Text>
+                        </TouchableOpacity>
+                    </MotiView>
+                </View>
             </Modal>
         </View>
     );
@@ -366,4 +479,13 @@ const styles = StyleSheet.create({
     },
     closeCamera: { padding: 20 },
     textWhite: { color: '#fff', fontSize: 18, fontWeight: '600' },
+
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+    modalContent: { width: '100%', backgroundColor: '#fff', borderRadius: 24, padding: 25, ...SHADOWS.medium },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+    modalTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.text },
+    modalSubtitle: { fontSize: 14, color: COLORS.textSecondary, marginBottom: 20 },
+    modalInput: { backgroundColor: '#f8f9ff', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#eee', fontSize: 16, marginBottom: 20, color: COLORS.text },
+    inviteButton: { backgroundColor: COLORS.primary, padding: 16, borderRadius: 12, alignItems: 'center' },
+    inviteText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });

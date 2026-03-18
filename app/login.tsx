@@ -33,7 +33,7 @@ export default function LoginScreen() {
         await signInWithEmailAndPassword(auth, email, password);
       }
       // Navigate to dashboard on success (both login and register)
-      router.replace('/dashboard');
+      router.replace('/(tabs)');
     } catch (error: any) {
       let msg = error.message;
       if (msg.includes('auth/email-already-in-use')) msg = 'Email already in use.';

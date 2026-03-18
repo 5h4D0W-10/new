@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import React, { useCallback, useState } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { DateData, Calendar as RNCalendar } from 'react-native-calendars';
 import { auth } from './config/firebase';
 import { COLORS, SHADOWS } from './constants/theme';
@@ -134,16 +134,43 @@ export default function CalendarPage() {
                     data={selectedEntries}
                     keyExtractor={(item) => item.id.toString()}
                     contentContainerStyle={styles.list}
-                    renderItem={({ item, index }) => (
-                        <MotiView
-                            from={{ translateY: 10, opacity: 0 }}
-                            animate={{ translateY: 0, opacity: 1 }}
-                            transition={{ delay: index * 100 }}
-                            style={styles.card}
-                        >
-                            <Text style={styles.cardText} numberOfLines={2}>{item.text || "No text content"}</Text>
-                        </MotiView>
-                    )}
+                    renderItem={({ item, index }) => {
+                        const attachments = JSON.parse(item.attachments || '[]');
+                        const hasAudio = attachments.some((a: any) => a.type === 'audio');
+                        const firstImage = attachments.find((a: any) => a.type === 'image');
+                        return (
+                            <MotiView
+                                from={{ translateY: 10, opacity: 0 }}
+                                animate={{ translateY: 0, opacity: 1 }}
+                                transition={{ delay: index * 100 }}
+                                style={styles.timelineRow}
+                            >
+                                <TouchableOpacity
+                                    style={styles.card}
+                                    activeOpacity={0.9}
+                                    onPress={() => router.push(`/entry/${item.id}` as any)}
+                                >
+                                    {firstImage && (
+                                        <Image source={{ uri: firstImage.uri }} style={styles.cardImage} />
+                                    )}
+                                    <View style={styles.cardContent}>
+                                        <Text style={styles.cardText} numberOfLines={3}>
+                                            {item.text || 'Just a moment captured...'}
+                                        </Text>
+                                        <View style={styles.cardFooter}>
+                                            <Text style={styles.timeText}>
+                                                {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </Text>
+                                            <View style={{ flexDirection: 'row' }}>
+                                                {hasAudio && <Ionicons name="mic" size={14} color={COLORS.primary} style={{ marginRight: 5 }} />}
+                                                {firstImage && <Ionicons name="image" size={14} color={COLORS.secondary} />}
+                                            </View>
+                                        </View>
+                                    </View>
+                                </TouchableOpacity>
+                            </MotiView>
+                        );
+                    }}
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
                             <Text style={styles.emptyText}>No entries for this day.</Text>
@@ -199,17 +226,39 @@ const styles = StyleSheet.create({
     },
     list: {
         paddingHorizontal: 20,
+        paddingBottom: 40,
+    },
+    timelineRow: {
+        marginBottom: 15,
     },
     card: {
         backgroundColor: '#fff',
-        padding: 20,
-        borderRadius: 16,
-        marginBottom: 10,
+        borderRadius: 18,
+        overflow: 'hidden',
         ...SHADOWS.light,
+    },
+    cardImage: {
+        width: '100%',
+        height: 140,
+    },
+    cardContent: {
+        padding: 15,
     },
     cardText: {
         fontSize: 16,
         color: COLORS.text,
+        lineHeight: 22,
+        marginBottom: 10,
+    },
+    cardFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 5,
+    },
+    timeText: {
+        fontSize: 12,
+        color: '#999',
     },
     emptyState: {
         padding: 20,
