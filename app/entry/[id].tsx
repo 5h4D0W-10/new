@@ -4,8 +4,9 @@ import { Audio } from 'expo-av';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { auth } from '../config/firebase';
+import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { addDoc, collection } from 'firebase/firestore';
+import { auth, db } from '../config/firebase';
 import { SHADOWS } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { getEntryById } from '../db/database';
@@ -68,6 +69,39 @@ export default function EntryDetail() {
     const { colors, isDark } = useTheme();
     const [entry, setEntry] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [isShareModalVisible, setShareModalVisible] = useState(false);
+    const [shareEmail, setShareEmail] = useState('');
+    const [isSharing, setIsSharing] = useState(false);
+
+    const handleShare = async () => {
+        if (!shareEmail.trim()) {
+            Alert.alert("Error", "Please enter an email address");
+            return;
+        }
+        if (shareEmail.trim().toLowerCase() === auth.currentUser?.email?.toLowerCase()) {
+            Alert.alert("Error", "You cannot share with yourself");
+            return;
+        }
+        setIsSharing(true);
+        try {
+            await addDoc(collection(db, 'shared_entries'), {
+                entry: {
+                    ...entry,
+                    id: undefined // Remove local ID so it doesn't conflict when imported
+                },
+                fromEmail: auth.currentUser?.email,
+                toEmail: shareEmail.trim().toLowerCase(),
+                createdAt: Date.now()
+            });
+            Alert.alert("Success", "Memory shared successfully!");
+            setShareModalVisible(false);
+            setShareEmail('');
+        } catch (error: any) {
+            Alert.alert("Error", error.message);
+        } finally {
+            setIsSharing(false);
+        }
+    };
 
     useEffect(() => {
         const fetchEntry = async () => {
@@ -118,7 +152,9 @@ export default function EntryDetail() {
                     <Ionicons name="arrow-back" size={24} color={colors.text} />
                 </TouchableOpacity>
                 <Text style={[styles.headerTitle, { color: colors.text }]}>{formattedDate}</Text>
-                <View style={{ width: 24 }} />
+                <TouchableOpacity onPress={() => setShareModalVisible(true)} style={styles.backButton}>
+                    <Ionicons name="paper-plane-outline" size={24} color={colors.primary} />
+                </TouchableOpacity>
             </View>
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -155,6 +191,52 @@ export default function EntryDetail() {
                 </View>
 
             </ScrollView>
+
+            <Modal
+                visible={isShareModalVisible}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setShareModalVisible(false)}
+            >
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.cardBg }]}>
+                        <Text style={[styles.modalTitle, { color: colors.text }]}>Share Memory</Text>
+                        <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+                            Enter your friend's email address to share this memory with them.
+                        </Text>
+                        
+                        <TextInput
+                            style={[styles.modalInput, { color: colors.text }]}
+                            placeholder="friend@example.com"
+                            placeholderTextColor={colors.textSecondary}
+                            value={shareEmail}
+                            onChangeText={setShareEmail}
+                            autoCapitalize="none"
+                            keyboardType="email-address"
+                        />
+                        
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity 
+                                style={[styles.modalBtn, { backgroundColor: 'transparent' }]}
+                                onPress={() => setShareModalVisible(false)}
+                            >
+                                <Text style={[styles.modalBtnText, { color: colors.textSecondary }]}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.modalBtn, { backgroundColor: colors.primary }]}
+                                onPress={handleShare}
+                                disabled={isSharing}
+                            >
+                                {isSharing ? (
+                                    <ActivityIndicator color="#fff" size="small" />
+                                ) : (
+                                    <Text style={[styles.modalBtnText, { color: '#fff' }]}>Share</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
         </View>
     );
 }
@@ -231,5 +313,49 @@ const styles = StyleSheet.create({
     timestamp: {
         fontSize: 12,
         fontStyle: 'italic',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    modalContent: {
+        width: '100%',
+        borderRadius: 20,
+        padding: 20,
+        ...SHADOWS.medium,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 10,
+    },
+    modalSubtitle: {
+        fontSize: 14,
+        marginBottom: 20,
+        lineHeight: 20,
+    },
+    modalInput: {
+        backgroundColor: 'rgba(0,0,0,0.05)',
+        borderRadius: 12,
+        padding: 15,
+        fontSize: 16,
+        marginBottom: 20,
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+    },
+    modalBtn: {
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 10,
+        marginLeft: 10,
+    },
+    modalBtnText: {
+        fontSize: 16,
+        fontWeight: '600',
     },
 });

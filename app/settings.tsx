@@ -17,7 +17,6 @@ export default function Settings() {
     const router = useRouter();
     const { colors, toggleTheme, isDark } = useTheme();
     const [notifications, setNotifications] = useState(true);
-    const [biometrics, setBiometrics] = useState(false);
     const [backingUp, setBackingUp] = useState(false);
     const [restoring, setRestoring] = useState(false);
 
@@ -123,13 +122,6 @@ export default function Settings() {
                             label="Daily Reminders"
                             color="#FF6584"
                             rightElement={<Switch value={notifications} onValueChange={setNotifications} trackColor={{ true: 'red', false: '#ccc' }} thumbColor={'#fff'} />}
-                        />
-                        <View style={styles.divider} />
-                        <SettingRow
-                            icon="finger-print"
-                            label="Biometric Lock"
-                            color="#00cec9"
-                            rightElement={<Switch value={biometrics} onValueChange={setBiometrics} trackColor={{ true: 'red', false: '#ccc' }} thumbColor={'#fff'} />}
                         />
                     </View>
                 </View>

@@ -1,17 +1,19 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { addDoc, collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
+import { addDoc, collection, doc, deleteDoc, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { auth, db } from '../config/firebase';
 import { COLORS, SHADOWS } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
+import { importEntry } from '../db/database';
 
 export default function SocialScreen() {
     const { colors } = useTheme();
     const router = useRouter();
     const [chats, setChats] = useState<any[]>([]);
+    const [sharedEntries, setSharedEntries] = useState<any[]>([]);
     const [newFriendEmail, setNewFriendEmail] = useState('');
     const currentUserEmail = auth.currentUser?.email;
 
@@ -36,6 +38,48 @@ export default function SocialScreen() {
 
         return () => unsubscribe();
     }, [currentUserEmail]);
+
+    useEffect(() => {
+        if (!currentUserEmail) return;
+
+        const q = query(
+            collection(db, 'shared_entries'),
+            where('toEmail', '==', currentUserEmail.toLowerCase())
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const fetched = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setSharedEntries(fetched);
+        }, (error) => {
+            console.warn('Shared entries error:', error.message);
+        });
+
+        return () => unsubscribe();
+    }, [currentUserEmail]);
+
+    const handleSaveSharedEntry = async (item: any) => {
+        try {
+            const userId = auth.currentUser?.uid;
+            if (userId) {
+                await importEntry(item.entry, userId);
+                await deleteDoc(doc(db, 'shared_entries', item.id));
+                Alert.alert("Success", "Memory saved to your diary!");
+            }
+        } catch (error) {
+            Alert.alert("Error", "Could not save memory.");
+        }
+    };
+
+    const handleDiscardSharedEntry = async (item: any) => {
+        try {
+            await deleteDoc(doc(db, 'shared_entries', item.id));
+        } catch (error) {
+            Alert.alert("Error", "Could not discard memory.");
+        }
+    };
 
     const startChat = async () => {
         if (!newFriendEmail.trim() || !currentUserEmail) return;
@@ -89,6 +133,44 @@ export default function SocialScreen() {
 
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 
+                {/* Shared Memories Section */}
+                {sharedEntries.length > 0 && (
+                    <>
+                        <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Shared With You</Text>
+                        <View style={[styles.card, { backgroundColor: colors.cardBg, marginBottom: 25, padding: 0 }]}>
+                            {sharedEntries.map((item, idx) => (
+                                <View key={item.id} style={[styles.chatRow, idx > 0 && styles.borderTop, { flexDirection: 'column', alignItems: 'flex-start' }]}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                        <View style={[styles.avatar, { backgroundColor: COLORS.secondary }]}>
+                                            <Ionicons name="gift" size={20} color="#fff" />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={[styles.chatName, { color: colors.text }]}>Memory from {item.fromEmail}</Text>
+                                            <Text style={[styles.chatPreview, { color: colors.textSecondary }]} numberOfLines={2}>
+                                                {item.entry.text || "A memory was shared with you."}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', marginTop: 15, width: '100%', justifyContent: 'flex-end' }}>
+                                        <TouchableOpacity 
+                                            style={[styles.actionBtn, { backgroundColor: 'rgba(255, 59, 48, 0.1)', marginRight: 10 }]}
+                                            onPress={() => handleDiscardSharedEntry(item)}
+                                        >
+                                            <Text style={{ color: '#FF3B30', fontWeight: '600' }}>Discard</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity 
+                                            style={[styles.actionBtn, { backgroundColor: COLORS.primary }]}
+                                            onPress={() => handleSaveSharedEntry(item)}
+                                        >
+                                            <Text style={{ color: '#fff', fontWeight: '600' }}>Save to Diary</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            ))}
+                        </View>
+                    </>
+                )}
+
                 {/* Find Users / Friend Requests */}
                 <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Start a Chat</Text>
                 <View style={[styles.card, { backgroundColor: colors.cardBg, marginBottom: 25 }]}>
@@ -222,5 +304,10 @@ const styles = StyleSheet.create({
     },
     chatPreview: {
         fontSize: 14,
+    },
+    actionBtn: {
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 8,
     }
 });

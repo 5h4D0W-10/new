@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "diaryApp",
+    "name": "My Journey",
     "slug": "diaryApp",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -9,9 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tejas.diaryapp"
     },
     "android": {
+      "package": "com.tejas.diaryapp",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -39,11 +41,48 @@
           }
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow My Journey to access your camera for diary entry photos."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow My Journey to access your photos and videos."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow My Journey to access your photos.",
+          "savePhotosPermission": "Allow My Journey to save photos."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow My Journey to record audio notes."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow My Journey to access your location."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3fcd6a4f-374e-4e93-a5cc-1ae74d00a4f0"
+      }
     }
   }
 }

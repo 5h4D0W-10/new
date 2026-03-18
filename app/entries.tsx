@@ -4,12 +4,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import React, { useState } from 'react';
-import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View, Alert } from 'react-native';
 // import { COLORS, SHADOWS } from './constants/theme';
 import { auth } from './config/firebase';
 import { SHADOWS } from './constants/theme';
 import { useTheme } from './context/ThemeContext';
-import { getEntries } from './db/database';
+import { getEntries, deleteEntry } from './db/database';
 
 type Entry = {
     id: number;
@@ -32,6 +32,31 @@ export default function Entries() {
             const data: any = await getEntries(userId);
             setEntries(data as Entry[]);
         }
+    };
+
+    const handleDelete = (id: number) => {
+        Alert.alert(
+            "Delete Memory",
+            "Are you sure you want to delete this memory?",
+            [
+                { text: "Cancel", style: "cancel" },
+                { 
+                    text: "Delete", 
+                    style: "destructive",
+                    onPress: async () => {
+                        const userId = auth.currentUser?.uid;
+                        if (userId) {
+                            const success = await deleteEntry(id, userId);
+                            if (success) {
+                                setEntries((prev) => prev.filter(e => e.id !== id));
+                            } else {
+                                Alert.alert("Error", "Failed to delete entry");
+                            }
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     useFocusEffect(
@@ -83,6 +108,9 @@ export default function Entries() {
                                     <View style={styles.icons}>
                                         {hasAudio && <Ionicons name="mic" size={14} color={colors.primary} style={{ marginRight: 5 }} />}
                                         {firstImage && <Ionicons name="image" size={14} color={colors.secondary} />}
+                                        <TouchableOpacity onPress={() => handleDelete(item.id)} style={{ marginLeft: 10 }}>
+                                            <Ionicons name="trash-outline" size={16} color="#FF3B30" />
+                                        </TouchableOpacity>
                                     </View>
                                 </View>
                             </View>

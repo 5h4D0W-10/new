@@ -4,11 +4,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import React, { useCallback, useState } from 'react';
-import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View, Alert } from 'react-native';
 import { DateData, Calendar as RNCalendar } from 'react-native-calendars';
 import { auth } from './config/firebase';
 import { COLORS, SHADOWS } from './constants/theme';
-import { getEntries } from './db/database';
+import { getEntries, deleteEntry } from './db/database';
 
 type Entry = {
     id: number;
@@ -46,6 +46,31 @@ export default function CalendarPage() {
 
         setMarkedDates(markers);
         filterEntriesForDate(selectedDate, data);
+    };
+
+    const handleDelete = (id: number) => {
+        Alert.alert(
+            "Delete Memory",
+            "Are you sure you want to delete this memory?",
+            [
+                { text: "Cancel", style: "cancel" },
+                { 
+                    text: "Delete", 
+                    style: "destructive",
+                    onPress: async () => {
+                        const userId = auth.currentUser?.uid;
+                        if (userId) {
+                            const success = await deleteEntry(id, userId);
+                            if (success) {
+                                loadEntries();
+                            } else {
+                                Alert.alert("Error", "Failed to delete entry");
+                            }
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     useFocusEffect(
@@ -161,9 +186,12 @@ export default function CalendarPage() {
                                             <Text style={styles.timeText}>
                                                 {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </Text>
-                                            <View style={{ flexDirection: 'row' }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                                 {hasAudio && <Ionicons name="mic" size={14} color={COLORS.primary} style={{ marginRight: 5 }} />}
                                                 {firstImage && <Ionicons name="image" size={14} color={COLORS.secondary} />}
+                                                <TouchableOpacity onPress={() => handleDelete(item.id)} style={{ marginLeft: 10 }}>
+                                                    <Ionicons name="trash-outline" size={16} color="#FF3B30" />
+                                                </TouchableOpacity>
                                             </View>
                                         </View>
                                     </View>

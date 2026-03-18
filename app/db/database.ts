@@ -82,8 +82,9 @@ export const importEntry = async (entry: any, userId: string) => {
             'INSERT INTO entries (date, text, attachments, created_at, userId, mood) VALUES (?, ?, ?, ?, ?, ?)',
             entry.date, entry.text, entry.attachments, entry.created_at, userId, entry.mood || 'neutral'
         );
-    } catch (error) {
+    } catch (error: any) {
         console.log('Error importing entry:', error);
+        throw new Error(error.message || "Failed to insert entry into database");
     }
 };
 
